@@ -14,9 +14,9 @@ tcn takes care of
 go build -o tcn .
 ```
 
-## Container build
+## Local container build
 
 ```bash
-docker build . -t ghcr.io/Payback159/tcn
-nerdctl build . -t ghcr.io/Payback159/tcn
+docker build . -t tcn
+nerdctl build . -t tcn
 ```
