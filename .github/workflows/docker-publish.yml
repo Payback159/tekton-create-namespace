@@ -109,7 +109,6 @@ jobs:
           body: "last state of development"
           prerelease: true
           tag: latest
-          commit: main
           allowUpdates: true
           generateReleaseNotes: true
 
@@ -118,5 +117,5 @@ jobs:
         if: "startsWith(github.event.ref, 'refs/tags/v')"
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          body: "openfero ${{ env.RELEASE_VERSION }}"
+          body: "tekton-create-namespace ${{ env.RELEASE_VERSION }}"
           generateReleaseNotes: true
