@@ -29,11 +29,16 @@ func main() {
 	pre := "tcn"
 
 	//Create and parse cmdline arguments
-	branch := flag.String("branchname", "", "input parameter for the branche name")
-	hash := flag.String("buildhash", "", "input parameter for the build hash")
-	user := flag.String("user", "", "the value is authorized as a user in the created namespace")
-	role := flag.String("role", "edit", "by default the edit role is used, with this flag a CustomeRole can be referenced")
+	branch := flag.String("branchname", "", "Mandatory: input parameter for the branche name")
+	user := flag.String("user", "", "Optional: the value is authorized as a user in the created namespace")
+	hash := flag.String("buildhash", "", "Optional: input parameter for the build hash")
+	role := flag.String("role", "edit", "Optional: by default the edit role is used, with this flag a CustomeRole can be referenced")
 	flag.Parse()
+
+	//Need branchname to map tekton pipeline with namespace
+	if *branch == "" {
+		panic("branchname is required!")
+	}
 
 	//prepare kubernetes in cluster configuration
 	config, err := rest.InClusterConfig()
@@ -46,15 +51,15 @@ func main() {
 		panic(err)
 	}
 
-	//Generate randomstring for namespace postfix, avoiding collisions
-	randomstring := StringWithCharset(5, charset)
+	//Crafting namespace name
+	ns := ""
 	prefix := pre + "-" + *branch + "-" + *hash
-	ns := prefix + "-" + randomstring
-	log.Info("Start to create namespace " + ns)
-	if *user != "" {
-		log.Info("Assign role " + *role + " in namespace " + ns + " to user " + *user)
+	//Generate randomstring for namespace postfix if buildhash is unset, avoiding collisions
+	if *hash == "" {
+		randomstring := StringWithCharset(5, charset)
+		ns = prefix + randomstring
 	} else {
-		log.Info("No user was defined - skipping role assignment")
+		ns = prefix
 	}
 
 	nsSpec := &v1.Namespace{
@@ -73,7 +78,9 @@ func main() {
 		log.Info("Created namespace %s", ns)
 	}
 
+	log.Info("Start to create namespace " + ns)
 	if *user != "" {
+		log.Info("Assign role " + *role + " in namespace " + ns + " to user " + *user)
 		rb := &rbacv1.RoleBinding{
 			TypeMeta:   metav1.TypeMeta{},
 			ObjectMeta: metav1.ObjectMeta{Name: pre + "troubleshooter"},
@@ -96,6 +103,8 @@ func main() {
 		} else {
 			log.Info("Created rolebinding %s in namespace %s", rb.Name, ns)
 		}
+	} else {
+		log.Info("No user was defined - skipping role assignment")
 	}
 
 }
