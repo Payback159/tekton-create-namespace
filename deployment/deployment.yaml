@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tekton-create-namespace
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: tekton-create-namespace
+  name: tcn-allow-managing-namespaces
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - watch
+  - list
+  - create
+  - delete
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tekton-create-namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tcn-allow-managing-namespaces
+subjects:
+- kind: ServiceAccount
+  name: tekton-create-namespace
+  namespace: default
+---
+#Needs admin rights to namespace to allow granting rights to namespace via rolebindings see: https://github.com/Payback159/tekton-create-namespace/issues/3
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tcn-allow-creating-rolebindings
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+- kind: ServiceAccount
+  name: tekton-create-namespace
+  namespace: default
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: tekton-create-namespace-with-buildhash
+spec:
+  containers:
+  - name: tekton-create-namespace
+    image: ghcr.io/payback159/tekton-create-namespace:main
+    command: ["./tcn"]
+    args:
+    - "-branchname=with-buildhash"
+    - "-buildhash=buildhash"
+    resources:
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+  serviceAccount: tekton-create-namespace
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: tekton-create-namespace-without-buildhash
+spec:
+  containers:
+  - name: tekton-create-namespace-without-buildhash
+    image: ghcr.io/payback159/tekton-create-namespace:main
+    command: ["./tcn"]
+    args:
+    - "-branchname=without-buildhash"
+    resources:
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+  serviceAccount: tekton-create-namespace
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: tekton-create-namespace-with-user
+spec:
+  containers:
+  - name: tekton-create-namespace-with-user
+    image: ghcr.io/payback159/tekton-create-namespace:main
+    command: ["./tcn"]
+    args:
+    - "-branchname=with-user"
+    - "-user=testuser"
+    resources:
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+  serviceAccount: tekton-create-namespace

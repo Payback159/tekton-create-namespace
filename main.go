@@ -27,12 +27,12 @@ func main() {
 	log.SetFormatter(&log.JSONFormatter{})
 	//Prefix for the namespaces
 	pre := "tcn"
+	role := "edit"
 
 	//Create and parse cmdline arguments
 	branch := flag.String("branchname", "", "Mandatory: input parameter for the branche name")
 	user := flag.String("user", "", "Optional: the value is authorized as a user in the created namespace")
 	hash := flag.String("buildhash", "", "Optional: input parameter for the build hash")
-	role := flag.String("role", "edit", "Optional: by default the edit role is used, with this flag a CustomeRole can be referenced")
 	flag.Parse()
 
 	//Need branchname to map tekton pipeline with namespace
@@ -75,12 +75,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	} else {
-		log.Info("Created namespace %s", ns)
+		log.Info("Created namespace " + ns)
 	}
 
 	log.Info("Start to create namespace " + ns)
 	if *user != "" {
-		log.Info("Assign role " + *role + " in namespace " + ns + " to user " + *user)
+		log.Info("Assign role " + role + " in namespace " + ns + " to user " + *user)
 		rb := &rbacv1.RoleBinding{
 			TypeMeta:   metav1.TypeMeta{},
 			ObjectMeta: metav1.ObjectMeta{Name: pre + "troubleshooter"},
@@ -94,14 +94,14 @@ func main() {
 			RoleRef: rbacv1.RoleRef{
 				APIGroup: rbacv1.GroupName,
 				Kind:     "ClusterRole",
-				Name:     *role,
+				Name:     role,
 			},
 		}
 		_, err = createRolebinding(clientset, rb, nsSpec.GetObjectMeta().GetName())
 		if err != nil {
 			log.Error(err)
 		} else {
-			log.Info("Created rolebinding %s in namespace %s", rb.Name, ns)
+			log.Info("Created rolebinding " + rb.Name + " in namespace " + ns)
 		}
 	} else {
 		log.Info("No user was defined - skipping role assignment")
