@@ -11,8 +11,7 @@ WORKDIR /build
 RUN CGO_ENABLED=0 GOOS=linux go build -a -o tcn .
 
 # final stage
-FROM scratch
-WORKDIR /app
-COPY --from=build-env /build/tcn /app/
+FROM gcr.io/distroless/static
+COPY --from=build-env /build/tcn /
 
-CMD ["/app/tcn"]
+CMD ["/tcn"]
