@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
+	"fmt"
 	"math/rand"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -36,8 +39,9 @@ func main() {
 	flag.Parse()
 
 	//Need branchname to map tekton pipeline with namespace
-	if *branch == "" {
-		panic("branchname is required!")
+	branchNormalized, err := validateAndNormalizeBranch(*branch)
+	if err != nil {
+		log.Fatalf("Error parsing branch name: %s", branchNormalized)
 	}
 
 	//prepare kubernetes in cluster configuration
@@ -53,7 +57,7 @@ func main() {
 
 	//Crafting namespace name
 	ns := ""
-	prefix := pre + "-" + *branch + "-" + *hash
+	prefix := pre + "-" + branchNormalized + "-" + *hash
 	//Generate randomstring for namespace postfix if buildhash is unset, avoiding collisions
 	if *hash == "" {
 		randomstring := StringWithCharset(5, charset)
@@ -107,6 +111,76 @@ func main() {
 		log.Info("No user was defined - skipping role assignment")
 	}
 
+}
+
+// removes k8s invalid chars
+func validateAndNormalizeBranch(branch string) (string, error) {
+	// init
+	var err error
+	const separationRune = '-'
+
+	// pre-validated
+	if branch == "" {
+		return "", errors.New("parameter branchname is required")
+	}
+
+	// lowercase
+	branchLowerCase := strings.ToLower(branch)
+
+	// replace invalid characters
+	r, _ := regexp.Compile("[-a-z\\d]")
+	normalizedBranchRunes := []rune("")
+	for _, ch := range branchLowerCase {
+		chs := string(ch)
+		if !r.MatchString(chs) {
+			log.Tracef("branchname '%s' contains invalid character: %s,"+
+				"allowed are only ones that match the regex: %s, appending a minus(-) instead of this character!",
+				branchLowerCase, chs, r)
+			normalizedBranchRunes = append(normalizedBranchRunes, separationRune)
+		} else {
+			normalizedBranchRunes = append(normalizedBranchRunes, ch)
+		}
+	}
+
+	// chomp minuses at beginning
+	normalizedBranchRunes = chompBeginningCharacter(normalizedBranchRunes, separationRune)
+
+	// chomp minuses at end
+	normalizedBranchRunes = chompEndingCharacter(normalizedBranchRunes, separationRune)
+
+	// post-validated
+	normalizedBranchString := string(normalizedBranchRunes)
+	if normalizedBranchString == "" {
+		return "", errors.New(
+			fmt.Sprintf("branchname empty after matching all characters against regex: '%s'", r))
+	}
+
+	return normalizedBranchString, err
+}
+
+func chompBeginningCharacter(runearr []rune, runechar rune) []rune {
+	chomping := true
+	var chompedRune []rune
+	for _, cr := range runearr {
+		if chomping && cr == runechar {
+			log.Tracef("chomping character %s from string %s", string(cr), string(runechar))
+		} else {
+			chompedRune = append(chompedRune, cr)
+			chomping = false
+		}
+	}
+	return chompedRune
+}
+
+func chompEndingCharacter(runearr []rune, runechar rune) []rune {
+	if len(runearr) == 0 {
+		return []rune{}
+	}
+	if runearr[len(runearr)-1] == runechar {
+		return chompEndingCharacter(runearr[:len(runearr)-1], runechar)
+	} else {
+		return runearr
+	}
 }
 
 func createRolebinding(clientset *kubernetes.Clientset, rb *rbacv1.RoleBinding, ns string) (*rbacv1.RoleBinding, error) {
