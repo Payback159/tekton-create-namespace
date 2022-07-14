@@ -123,11 +123,11 @@ func main() {
 	}
 
 	// cleanup old ns
-	go cleanupNamespaces(clientset, prefixAndNamespace, ns, *namespaceList)
+	cleanupNamespaces(clientset, prefixAndNamespace, ns, *namespaceList)
 
 	if !existsNamespace(namespaceList, *prefix) {
-		log.Infof("Namespace with prefix %s does not exist (Note this does not mean that the namespace does "+
-			"not exist with a suffix - that check comes later!) - Looks like you want to create a namespace...",
+		log.Infof("Namespace with prefix '%s' does not exist (Note this does not mean that the namespace does "+
+			"not exist with a suffix - that check comes later!)",
 			*prefix)
 
 		// create new ns
@@ -292,7 +292,7 @@ func cleanupNamespaces(clientset *kubernetes.Clientset, pre string, ns string, n
 			log.Infof("deleting namespace %s", n.Name)
 			err := clientset.CoreV1().Namespaces().Delete(context.TODO(), n.Name, metav1.DeleteOptions{})
 			if err != nil {
-				log.Errorf("Error deleting namespace: %s", err)
+				log.Fatalf("Error deleting namespace: %s", err)
 			}
 		}
 	}
