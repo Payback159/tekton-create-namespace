@@ -46,7 +46,17 @@ func main() {
 		"delete the previous namespace as well!\n"+
 		"delete: deletes namspaces matching '[<prefix>-]<namespace>', but not if the namespace already exists with\n"+
 		"        the same suffix.\n"+
-		"create: same as delete + creates a new one afterwards")
+		"create: same as delete + creates a new one afterwards"+
+		"        Note that there is a special case when no namespace will be created, but outputted to outFilePath:"+
+		"        When you manually create a ns 'ab', and call tcn in create mode with params suffix=a, namespace=b."+
+		"        There is one main reasons to this - passthrough:\n"+
+		"        This way we can allow the user to specify a fixed namespace while still using the output of this "+
+		"        task as his single source of namespace. Tekton has atm. no if/else logic in templating, so we "+
+		"        can use the logic from within this task to allow pipeline users to toggle via config, whether "+
+		"        to use a generated or a fixed namespace. \n"+
+		"        To clarify further, tcn always produces a suffix (if you do not specify one yourself), therefore"+
+		"        it can detect whether a ns exists that has the same ns (but without the suffix) - as in the case "+
+		"        above")
 	level := flag.String("level", "info", "Log level: panic|fatal|error|warn|info|debug|trace")
 	outFilePath := flag.String("outFilePath", "", "If specified, will write the full output "+
 		"namespace to this file path")
@@ -88,8 +98,8 @@ func main() {
 	} else {
 		prefixWithSeparator = *prefix + separationString
 	}
-	prefixForCleanup := prefixWithSeparator + namespaceNormalized
-	nsDraft := prefixForCleanup + separationString + *suffix
+	prefixAndNamespace := prefixWithSeparator + namespaceNormalized
+	nsDraft := prefixAndNamespace + separationString + *suffix
 	// generate randomstring for namespace postfix if buildhash is unset, avoiding collisions
 	if *suffix == "" {
 		randomstring := StringWithCharset(5, charset)
@@ -113,38 +123,50 @@ func main() {
 	}
 
 	// cleanup old ns
-	go cleanupNamespaces(clientset, prefixForCleanup, ns, *namespaceList)
+	go cleanupNamespaces(clientset, prefixAndNamespace, ns, *namespaceList)
 
-	// create new ns
-	if *mode == "create" {
-		createNamespace(clientset, nsSpec, namespaceList)
+	if !existsNamespace(namespaceList, *prefix) {
+		log.Infof("Namespace with prefix %s does not exist (Note this does not mean that the namespace does "+
+			"not exist with a suffix - that check comes later!) - Looks like you want to create a namespace...",
+			*prefix)
 
-		if *user != "" {
-			log.Info("Assign role " + role + " in namespace " + ns + " to user " + *user)
-			rb := &rbacv1.RoleBinding{
-				TypeMeta:   metav1.TypeMeta{},
-				ObjectMeta: metav1.ObjectMeta{Name: *namespace + "troubleshooter"},
-				Subjects: []rbacv1.Subject{
-					{
-						APIGroup: rbacv1.GroupName,
-						Kind:     rbacv1.UserKind,
-						Name:     *user,
+		// create new ns
+		if *mode == "create" {
+			createNamespace(clientset, nsSpec, namespaceList)
+
+			if *user != "" {
+				log.Info("Assign role " + role + " in namespace " + ns + " to user " + *user)
+				rb := &rbacv1.RoleBinding{
+					TypeMeta:   metav1.TypeMeta{},
+					ObjectMeta: metav1.ObjectMeta{Name: *namespace + "troubleshooter"},
+					Subjects: []rbacv1.Subject{
+						{
+							APIGroup: rbacv1.GroupName,
+							Kind:     rbacv1.UserKind,
+							Name:     *user,
+						},
 					},
-				},
-				RoleRef: rbacv1.RoleRef{
-					APIGroup: rbacv1.GroupName,
-					Kind:     "ClusterRole",
-					Name:     role,
-				},
-			}
-			_, err = createRolebinding(clientset, rb, nsSpec.GetObjectMeta().GetName())
-			if err != nil {
-				log.Error(err)
+					RoleRef: rbacv1.RoleRef{
+						APIGroup: rbacv1.GroupName,
+						Kind:     "ClusterRole",
+						Name:     role,
+					},
+				}
+				_, err = createRolebinding(clientset, rb, nsSpec.GetObjectMeta().GetName())
+				if err != nil {
+					log.Error(err)
+				} else {
+					log.Info("Created rolebinding " + rb.Name + " in namespace " + ns)
+				}
 			} else {
-				log.Info("Created rolebinding " + rb.Name + " in namespace " + ns)
+				log.Info("No user was defined - skipping role assignment")
 			}
-		} else {
-			log.Info("No user was defined - skipping role assignment")
+		}
+	} else {
+		if *mode == "create" {
+			log.Infof("I did not touch k8s and not delete/create any namespace while in create mode. " +
+				"Check the tcn (tekton create namespace) docs (-help) if you really desire to run in passthrough.")
+			ns = *namespace
 		}
 	}
 
@@ -293,6 +315,15 @@ func StringWithCharset(length int, charset string) string {
 func existsNamespaceWithPrefix(namespaceList *v1.NamespaceList, namespacePrefix string) bool {
 	for _, ns := range namespaceList.Items {
 		if strings.Contains(ns.Name, namespacePrefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func existsNamespace(namespaceList *v1.NamespaceList, namespace string) bool {
+	for _, ns := range namespaceList.Items {
+		if ns.Name == namespace {
 			return true
 		}
 	}
