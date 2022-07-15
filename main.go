@@ -35,8 +35,8 @@ func main() {
 	// create cmdline arguments
 	prefix := flag.String("prefix", "tcn", "Optional: Prefix of namespace")
 	namespace := flag.String("namespace", "", fmt.Sprintf(
-		"Mandatory: input parameter for the namespace name. "+
-			"Notice that the full pattern of the (output) namespace is: "+
+		"Mandatory: main input parameter for the namespace name. "+
+			"Notice that the full pattern of the (output) namespace is composed of the input parameters: "+
 			"\n[<prefix>%s]<namespace>[%s<suffix>]",
 		separationString, separationString))
 	user := flag.String("user", "", "Optional: user that gets authorized in the created namespace")
@@ -163,7 +163,7 @@ func main() {
 		if *mode == "create" {
 			log.Infof("I did not touch k8s and not delete/create any namespace while in create mode. " +
 				"Check the tcn (tekton create namespace) docs (-help) if you really desire to run in passthrough.")
-			ns = *namespace
+			ns = *prefix
 		}
 	}
 
