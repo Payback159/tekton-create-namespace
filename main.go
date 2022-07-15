@@ -125,42 +125,39 @@ func main() {
 	// cleanup old ns
 	cleanupNamespaces(clientset, prefixAndNamespace, ns, *namespaceList)
 
-	if !existsNamespace(namespaceList, *prefix) {
+	// create new ns
+	if !existsNamespace(namespaceList, *prefix) && *mode == "create" {
 		log.Infof("Namespace with prefix '%s' does not exist (Note this does not mean that the namespace does "+
 			"not exist with a suffix - that check comes later!)",
 			*prefix)
+		createNamespace(clientset, nsSpec, namespaceList)
 
-		// create new ns
-		if *mode == "create" {
-			createNamespace(clientset, nsSpec, namespaceList)
-
-			if *user != "" {
-				log.Info("Assign role " + role + " in namespace " + ns + " to user " + *user)
-				rb := &rbacv1.RoleBinding{
-					TypeMeta:   metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{Name: *namespace + "troubleshooter"},
-					Subjects: []rbacv1.Subject{
-						{
-							APIGroup: rbacv1.GroupName,
-							Kind:     rbacv1.UserKind,
-							Name:     *user,
-						},
-					},
-					RoleRef: rbacv1.RoleRef{
+		if *user != "" {
+			log.Info("Assign role " + role + " in namespace " + ns + " to user " + *user)
+			rb := &rbacv1.RoleBinding{
+				TypeMeta:   metav1.TypeMeta{},
+				ObjectMeta: metav1.ObjectMeta{Name: *namespace + "troubleshooter"},
+				Subjects: []rbacv1.Subject{
+					{
 						APIGroup: rbacv1.GroupName,
-						Kind:     "ClusterRole",
-						Name:     role,
+						Kind:     rbacv1.UserKind,
+						Name:     *user,
 					},
-				}
-				_, err = createRolebinding(clientset, rb, nsSpec.GetObjectMeta().GetName())
-				if err != nil {
-					log.Error(err)
-				} else {
-					log.Info("Created rolebinding " + rb.Name + " in namespace " + ns)
-				}
-			} else {
-				log.Info("No user was defined - skipping role assignment")
+				},
+				RoleRef: rbacv1.RoleRef{
+					APIGroup: rbacv1.GroupName,
+					Kind:     "ClusterRole",
+					Name:     role,
+				},
 			}
+			_, err = createRolebinding(clientset, rb, nsSpec.GetObjectMeta().GetName())
+			if err != nil {
+				log.Error(err)
+			} else {
+				log.Info("Created rolebinding " + rb.Name + " in namespace " + ns)
+			}
+		} else {
+			log.Info("No user was defined - skipping role assignment")
 		}
 	} else {
 		if *mode == "create" {
