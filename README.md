@@ -1,28 +1,31 @@
 # tekton-create-namespace (tcn)
 
 ## description
+
 tekton-create-namespace is intended to be used as a Tekton task to allow a Tekton pipeline user to provide a full-blown
 dynamic environment. However, it could also be used as a standalone binary/docker image and integrated somewhere else.
 To facilitate management of the environments, provisioning and cleanup is provided at the namespace level,
 ensuring that no hanging resources interfere with the pipeline process.
 
 **IMPORTANT NOTES**:
+
 - As this also deletes namespaces, this is only recommended for dynamically spawning dev environments!
 - As this also deletes namespaces, make sure that [<prefix>-]<namespace> only matches namespaces that are safe to 
   delete!
 
 `tcn` takes care of
-* lifecycle of namespaces (create/delete)
-  * create: deletes old namespaces, if available and then creates a new one
-  * delete: only delete old namespaces
-  * note that both create and delete operations are controlled via separate invocations of the `tcn` app, see
+
+- lifecycle of namespaces (create/delete)
+  - create: deletes old namespaces, if available and then creates a new one
+  - delete: only delete old namespaces
+  - note that both create and delete operations are controlled via separate invocations of the `tcn` app, see
     the mode parameter in [usage](#usage)!
-* user authorization to the namespace
+- user authorization to the namespace
 
 ## state of project
 
-
 ## Usage
+
 ```text
 Usage of ./tcn:
   -level string
