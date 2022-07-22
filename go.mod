@@ -3,7 +3,7 @@ module github.com/Payback159/tekton-create-namespace
 go 1.18
 
 require (
-	github.com/sirupsen/logrus v1.8.1
+	github.com/sirupsen/logrus v1.9.0
 	k8s.io/api v0.24.2
 	k8s.io/apimachinery v0.24.3
 )
@@ -46,6 +46,6 @@ require (
 )
 
 require (
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
 	k8s.io/client-go v0.24.2
 )
